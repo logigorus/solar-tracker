@@ -5,81 +5,587 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Same Sun, Different Fates — Country Tracker</title>
 <style>
-  body   { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #121212; color: #e0e0e0; margin: 0; padding: 24px; }
-  h1     { font-size: 1.4em; margin-bottom: 4px; color: #fff; }
-  .sub   { color: #888; font-size: 0.9em; margin-bottom: 28px; }
-  table  { border-collapse: collapse; width: 100%; font-size: 0.87em; }
-  tr:hover td { filter: brightness(1.18); transition: filter 0.1s; }
-  .legend     { margin-top: 18px; font-size: 0.8em; color: #888; }
-  .leg-box    { display: inline-block; width: 12px; height: 12px;
-                 vertical-align: middle; margin-right: 4px; border-radius: 2px; }
-  footer { margin-top: 32px; font-size: 0.77em; color: #666;
-            border-top: 1px solid #333; padding-top: 12px; line-height: 1.7; }
-  a { color: #4a9eff; }
+/* ── Reset & base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#1c2128;--border:#30363d;
+  --text:#c9d1d9;--muted:#8b949e;--yellow:#f6c443;--green:#3fb950;
+  --blue:#58a6ff;--red:#f85149;--orange:#d29922;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);
+      line-height:1.5;padding:0 0 60px}
+
+/* ── Top bar ── */
+.topbar{background:#010409;border-bottom:1px solid var(--border);
+         padding:14px 28px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.topbar-title{font-size:1.15em;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px}
+.topbar-title .sun{font-size:1.3em}
+.topbar-meta{color:var(--muted);font-size:.83em;margin-left:auto;white-space:nowrap}
+
+/* ── Page header ── */
+.page-header{padding:32px 28px 20px;border-bottom:1px solid var(--border)}
+.page-header h1{font-size:1.75em;font-weight:700;color:#fff;margin-bottom:6px}
+.page-header p{color:var(--muted);font-size:.9em;max-width:680px}
+
+/* ── Summary ribbon ── */
+.ribbon{display:flex;gap:0;border-bottom:1px solid var(--border);overflow-x:auto}
+.ribbon-item{flex:1;min-width:140px;padding:18px 24px;border-right:1px solid var(--border);
+              text-align:center}
+.ribbon-item:last-child{border-right:none}
+.ribbon-value{font-size:1.5em;font-weight:700;color:var(--yellow);display:block;margin-bottom:4px}
+.ribbon-label{font-size:.78em;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+
+/* ── Filters ── */
+.filters{padding:14px 28px;display:flex;gap:8px;flex-wrap:wrap;
+           border-bottom:1px solid var(--border)}
+.filter-btn{background:var(--surface);border:1px solid var(--border);color:var(--muted);
+             padding:5px 14px;border-radius:20px;cursor:pointer;font-size:.84em;
+             transition:all .15s;font-family:var(--font)}
+.filter-btn:hover,.filter-btn.active{background:var(--yellow);color:#000;
+             border-color:var(--yellow);font-weight:600}
+
+/* ── Cards grid ── */
+.cards-section{padding:24px 28px}
+.section-title{font-size:1em;font-weight:600;color:var(--muted);text-transform:uppercase;
+                letter-spacing:.06em;margin-bottom:16px}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));
+             gap:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+       overflow:hidden;transition:border-color .2s,box-shadow .2s}
+.card:hover{border-color:#444c56;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.card[hidden]{display:none}
+
+/* ── Card header ── */
+.card-header{padding:14px 16px;display:flex;align-items:flex-start;gap:10px;
+              border-bottom:1px solid var(--border);background:var(--surface2)}
+.card-flag{font-size:2em;line-height:1;flex-shrink:0}
+.card-title-group{flex:1}
+.card-country{font-size:1.05em;font-weight:700;color:#fff;line-height:1.2}
+.card-badges{display:flex;flex-wrap:wrap;gap:4px;align-items:flex-start;justify-content:flex-end;flex-shrink:0}
+.pathway-badge{font-size:.72em;padding:2px 7px;border-radius:12px;border:1px solid;
+                font-weight:600;white-space:nowrap}
+
+/* ── Card stats ── */
+.card-stats{padding:12px 16px;display:flex;flex-direction:column;gap:7px}
+.stat-row{display:flex;align-items:center;gap:8px;font-size:.83em}
+.stat-label{color:var(--muted);flex:0 0 160px;font-size:.9em}
+.stat-value{font-weight:600;color:var(--text);flex:0 0 80px;text-align:right}
+.stat-since{color:var(--muted);font-size:.85em;font-weight:400}
+.bar-wrap{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;transition:width .4s}
+.bar-empty{flex:1;font-size:.75em;color:var(--muted)}
+
+/* ── Details/summary (case study + news) ── */
+.case-study-details,
+.news-details{border-top:1px solid var(--border)}
+.case-study-details>summary,
+.news-details>summary{
+  padding:9px 16px;cursor:pointer;font-size:.82em;font-weight:600;
+  color:var(--muted);list-style:none;display:flex;align-items:center;
+  gap:6px;transition:color .15s;user-select:none
+}
+.case-study-details>summary::before{content:"▶";font-size:.7em;transition:transform .2s}
+.case-study-details[open]>summary::before{transform:rotate(90deg)}
+.news-details>summary::before{content:"▶";font-size:.7em;transition:transform .2s}
+.news-details[open]>summary::before{transform:rotate(90deg)}
+.case-study-details>summary:hover,
+.news-details>summary:hover{color:var(--text)}
+.case-study-text{padding:10px 16px 14px;font-size:.83em;color:var(--muted);
+                  line-height:1.6;border-top:1px solid var(--border)}
+
+/* ── News list ── */
+.news-list{list-style:none;padding:0;border-top:1px solid var(--border)}
+.news-list li{padding:9px 16px;border-bottom:1px solid var(--border);
+               font-size:.8em;display:flex;flex-direction:column;gap:3px}
+.news-list li:last-child{border-bottom:none}
+.news-list a{color:var(--blue);text-decoration:none;line-height:1.4;
+              display:block}
+.news-list a:hover{text-decoration:underline}
+.news-meta{color:var(--muted);font-size:.85em}
+.no-news{padding:10px 16px;color:var(--muted);font-size:.82em;
+          border-top:1px solid var(--border)}
+
+/* ── Data table section ── */
+.table-section{padding:0 28px 24px}
+.table-details>summary{
+  padding:14px 4px;cursor:pointer;font-size:.9em;font-weight:600;
+  color:var(--muted);list-style:none;display:flex;align-items:center;
+  gap:8px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)
+}
+.table-details>summary::before{content:"▶";font-size:.7em;transition:transform .2s}
+.table-details[open]>summary::before{transform:rotate(90deg)}
+.table-details>summary:hover{color:var(--text)}
+.table-wrap{overflow-x:auto;margin-top:12px}
+table{border-collapse:collapse;width:100%;font-size:.84em}
+tr:hover td{filter:brightness(1.15);transition:filter .1s}
+
+/* ── Legend ── */
+.legend{padding:16px 28px;font-size:.78em;color:var(--muted);
+         border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:12px}
+.leg-item{display:flex;align-items:center;gap:5px}
+.leg-box{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+/* ── Footer ── */
+footer{padding:20px 28px 0;font-size:.77em;color:var(--muted);
+        border-top:1px solid var(--border);line-height:1.7}
+footer a{color:var(--blue)}
+footer strong{color:var(--text)}
+
+/* ── Responsive ── */
+@media(max-width:600px){
+  .cards-grid{grid-template-columns:1fr}
+  .ribbon-item{min-width:110px;padding:14px 12px}
+  .ribbon-value{font-size:1.2em}
+  .page-header{padding:20px 16px 16px}
+  .filters,.cards-section,.table-section{padding-left:16px;padding-right:16px}
+}
 </style>
 </head>
 <body>
-<h1>&#9728; Same Sun, Different Fates — Country Tracker</h1>
-<p class="sub">
-  11 case countries &nbsp;|&nbsp;
-  Sources: World Bank · IRENA · Ember · V-Dem v15 · WGI &nbsp;|&nbsp;
-  Generated: 2026-02-18 23:59 UTC
-</p>
 
-<table>
-<thead><tr>
-  <th style="background:#111;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #444;border-bottom:2px solid #555">Country</th>
-  <th style="background:#111;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #444;border-bottom:2px solid #555">Pathway / Project</th>
-  <th style="background:#111;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #444;border-bottom:2px solid #555;text-align:right">Elec. access</th>
-  <th style="background:#111;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #444;border-bottom:2px solid #555;text-align:right">GDP/cap</th>
-  <th style="background:#111;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #444;border-bottom:2px solid #555;text-align:right">Renew. % final<br><span style="font-weight:400;font-size:0.85em">(World Bank)</span></th>
-  <th style="background:#111;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #444;border-bottom:2px solid #555;text-align:right">Solar PV MW<br><span style="font-weight:400;font-size:0.85em">(IRENA 2023)</span></th>
-  <th style="background:#111;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #444;border-bottom:2px solid #555;text-align:right">Solar CAGR</th>
-  <th style="background:#111;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #444;border-bottom:2px solid #555;text-align:right">Renew. % elec.<br><span style="font-weight:400;font-size:0.85em">(Ember)</span></th>
-  <th style="background:#111;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #444;border-bottom:2px solid #555;text-align:right">V-Dem<br><span style="font-weight:400;font-size:0.85em">Electoral</span></th>
-  <th style="background:#111;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #444;border-bottom:2px solid #555;text-align:right">WGI<br><span style="font-weight:400;font-size:0.85em">Rule of Law</span></th>
-</tr></thead>
-<tbody>
-<tr><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333"><strong>Uzbekistan</strong><br><span style="font-size:0.8em;color:#aaa">Central Asia</span></td><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333">Fossil-to-Solar<br><span style="background:#3a1a5c;padding:1px 6px;border-radius:3px;font-size:0.78em">Solo</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">100.0%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">$2,879</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">1.0%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">474 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">85.2%<br><span style="font-size:0.75em;color:#888">since 2013</span></td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">9.2%</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">0.214</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">-0.83</td></tr>
-<tr><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333"><strong>Kazakhstan</strong><br><span style="font-size:0.8em;color:#aaa">Central Asia</span></td><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333">Resource Trap<br><span style="background:#1a3a1a;padding:1px 6px;border-radius:3px;font-size:0.78em">Book</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">100.0%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">$12,879</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">2.0%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">1306 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">119.6%<br><span style="font-size:0.75em;color:#888">since 2013</span></td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">15.2%</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">0.271</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">-0.45</td></tr>
-<tr><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333"><strong>Kenya</strong><br><span style="font-size:0.8em;color:#aaa">East Africa</span></td><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333">Leapfrog<br><span style="background:#1a3a1a;padding:1px 6px;border-radius:3px;font-size:0.78em">Book</span></td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #333">76.2%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">$1,943</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">67.7%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">534 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">97.5%<br><span style="font-size:0.75em;color:#888">since 2007</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">91.9%</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #333">0.566</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">-0.33</td></tr>
-<tr><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333"><strong>Mexico</strong><br><span style="font-size:0.8em;color:#aaa">Latin America</span></td><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333">Middle Ground<br><span style="background:#1a3a1a;padding:1px 6px;border-radius:3px;font-size:0.78em">Book</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">99.7%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">$13,861</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">13.0%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">10893 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">33.6%<br><span style="font-size:0.75em;color:#888">since 2000</span></td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">21.1%</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #333">0.549</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">-0.81</td></tr>
-<tr><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333"><strong>Slovenia</strong><br><span style="font-size:0.8em;color:#aaa">EU/CEE</span></td><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333">EU Leader<br><span style="background:#1a3a5c;padding:1px 6px;border-radius:3px;font-size:0.78em">WPSA</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">100.0%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">$32,660</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">23.4%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">1031 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">73.7%<br><span style="font-size:0.75em;color:#888">since 2005</span></td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #333">39.8%</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">0.757</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">1.04</td></tr>
-<tr><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333"><strong>Slovakia</strong><br><span style="font-size:0.8em;color:#aaa">EU/CEE</span></td><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333">EU Laggard<br><span style="background:#1a3a5c;padding:1px 6px;border-radius:3px;font-size:0.78em">WPSA</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">100.0%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">$24,615</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">17.9%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">593 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">30.3%<br><span style="font-size:0.75em;color:#888">since 2010</span></td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">18.7%</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">0.817</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">0.60</td></tr>
-<tr><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333"><strong>Serbia</strong><br><span style="font-size:0.8em;color:#aaa">EU/CEE</span></td><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333">Candidate Pressure<br><span style="background:#1a3a5c;padding:1px 6px;border-radius:3px;font-size:0.78em">WPSA</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">100.0%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">$12,282</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">27.2%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">197 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">37.1%<br><span style="font-size:0.75em;color:#888">since 2005</span></td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">27.0%</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #333">0.360</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #333">-0.07</td></tr>
-<tr><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333"><strong>Croatia</strong><br><span style="font-size:0.8em;color:#aaa">EU/CEE</span></td><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333">EU Accelerator<br><span style="background:#1a3a5c;padding:1px 6px;border-radius:3px;font-size:0.78em">WPSA</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">100.0%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">$22,184</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #333">34.1%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">462 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">68.9%<br><span style="font-size:0.75em;color:#888">since 2009</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">75.9%</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">0.744</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #333">0.36</td></tr>
-<tr><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333"><strong>Senegal</strong><br><span style="font-size:0.8em;color:#aaa">West Africa</span></td><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333">Pioneer<br><span style="background:#1a3a5c;padding:1px 6px;border-radius:3px;font-size:0.78em">WPSA</span></td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #333">74.2%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">$1,698</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #333">35.4%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">231 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">30.9%<br><span style="font-size:0.75em;color:#888">since 2010</span></td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">21.7%</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">0.626</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #333">-0.27</td></tr>
-<tr><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333"><strong>Mali</strong><br><span style="font-size:0.8em;color:#aaa">West Africa</span></td><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333">Low Capacity<br><span style="background:#1a3a5c;padding:1px 6px;border-radius:3px;font-size:0.78em">WPSA</span></td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #333">54.5%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">$1,044</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">71.1%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">97 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">70.0%<br><span style="font-size:0.75em;color:#888">since 2007</span></td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #333">42.7%</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">0.231</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #333">-0.98</td></tr>
-<tr><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333"><strong>Ghana</strong><br><span style="font-size:0.8em;color:#aaa">West Africa</span></td><td style="background:#1e1e1e;text-align:left;padding:6px 10px;border:1px solid #333">Emerging Market<br><span style="background:#1a3a5c;padding:1px 6px;border-radius:3px;font-size:0.78em">WPSA</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">89.5%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">$2,384</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #333">39.0%</td><td style="background:#1e1e1e;text-align:right;padding:6px 10px;border:1px solid #333">188 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">50.6%<br><span style="font-size:0.75em;color:#888">since 2013</span></td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #333">38.5%</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #333">0.664</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #333">-0.10</td></tr>
-</tbody>
-</table>
-
-<div class="legend">
-  <span class="leg-box" style="background:#1e5c2a"></span> High &nbsp;
-  <span class="leg-box" style="background:#5c4a20"></span> Mid &nbsp;
-  <span class="leg-box" style="background:#5c2020"></span> Low &nbsp;
-  <span class="leg-box" style="background:#1e1e1e"></span> Informational only
-  &nbsp;&nbsp;|&nbsp;&nbsp;
-  <span class="leg-box" style="background:#1a3a5c"></span> WPSA paper &nbsp;
-  <span class="leg-box" style="background:#1a3a1a"></span> Book only &nbsp;
-  <span class="leg-box" style="background:#3a1a5c"></span> Solo article
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-title">
+    <span class="sun">☀</span> Same Sun, Different Fates
+  </div>
+  <div class="topbar-meta">
+    Updated: 2026-02-22 17:00 UTC &nbsp;·&nbsp;
+    Sources: World Bank · IRENA · Ember · V-Dem v15 · WGI · GDELT
+  </div>
 </div>
 
+<!-- Page header -->
+<div class="page-header">
+  <h1>Country Tracker</h1>
+  <p>
+    Comparative research dashboard for <em>Same Sun, Different Fates</em> —
+    tracking solar deployment, political economy, and energy transition pathways
+    across 11 case countries on four continents.
+  </p>
+</div>
+
+<!-- Summary ribbon -->
+<div class="ribbon">
+  <div class="ribbon-item">
+    <span class="ribbon-value">11</span>
+    <span class="ribbon-label">Case Countries</span>
+  </div>
+  <div class="ribbon-item">
+    <span class="ribbon-value">16.0 GW</span>
+    <span class="ribbon-label">Total Solar PV (IRENA)</span>
+  </div>
+  <div class="ribbon-item">
+    <span class="ribbon-value">36.5%</span>
+    <span class="ribbon-label">Avg Renew. Electricity</span>
+  </div>
+  <div class="ribbon-item">
+    <span class="ribbon-value">4</span>
+    <span class="ribbon-label">Regions</span>
+  </div>
+  <div class="ribbon-item">
+    <span class="ribbon-value">3</span>
+    <span class="ribbon-label">Active Projects</span>
+  </div>
+</div>
+
+<!-- Filter tabs -->
+<div class="filters">
+  <button class="filter-btn active" onclick="filterCards('all',this)">All</button>
+  <button class="filter-btn" onclick="filterCards('fossil-to-solar',this)">Fossil-to-Solar</button>
+  <button class="filter-btn" onclick="filterCards('resource-trap',this)">Resource Trap</button>
+  <button class="filter-btn" onclick="filterCards('leapfrog',this)">Leapfrog</button>
+  <button class="filter-btn" onclick="filterCards('eu',this)">EU Cases</button>
+  <button class="filter-btn" onclick="filterCards('west-africa',this)">West Africa</button>
+</div>
+
+<!-- Country cards -->
+<div class="cards-section">
+  <div class="section-title">Country profiles &amp; recent news</div>
+  <div class="cards-grid" id="cards-grid">
+    
+<div class="card">
+  <div class="card-header">
+    <span class="card-flag">🇰🇿</span>
+    <div class="card-title-group">
+      <h2 class="card-country">Kazakhstan</h2>
+    </div>
+    <div class="card-badges">
+      <span class="pathway-badge" style="background:#991b1b20;border-color:#991b1b;color:#991b1baa">Resource Trap</span>
+    </div>
+  </div>
+
+  <div class="card-stats">
+    <div class="stat-row"><span class="stat-label">Solar PV capacity</span><span class="stat-value">1.31 GW</span><div class="bar-wrap"><div class="bar-fill" style="width:5.2%;background:#f6c443"></div></div></div><div class="stat-row"><span class="stat-label">Solar CAGR</span><span class="stat-value">119.6%/yr <span class='stat-since'>since 2013</span></span></div><div class="stat-row"><span class="stat-label">Renewables (final energy)</span><span class="stat-value">2.0%</span><div class="bar-wrap"><div class="bar-fill" style="width:2.0%;background:#3fb950"></div></div></div><div class="stat-row"><span class="stat-label">Renewables (electricity)</span><span class="stat-value">15.2%</span><div class="bar-wrap"><div class="bar-fill" style="width:15.2%;background:#58a6ff"></div></div></div><div class="stat-row"><span class="stat-label">GDP / capita</span><span class="stat-value">$12,879</span></div><div class="stat-row"><span class="stat-label">Democracy</span><span class="stat-value" style="color:#ef4444">Autocracy (-6)</span></div>
+  </div>
+
+  <details class="case-study-details">
+    <summary>Case study</summary>
+    <p class="case-study-text">Kazakhstan sits atop vast fossil fuel wealth and institutional capture by oil-and-gas interests, producing chronically laggard solar deployment despite world-class irradiation. It is the book's primary resource-curse counterpoint to Uzbekistan: same region, similar technology access, radically different political incentives — and a much slower transition.</p>
+  </details>
+
+  <details class="news-details" open>
+    <summary>Recent news (4 articles)</summary>
+    <ul class="news-list"><li><a href="http://russian.news.cn/20260219/9ab1529bc7cb4e13a1ed7cbcfffe892e/c.html" target="_blank" rel="noopener">Сенат Казахстана одобрил закон о ратификации соглашения с Китаем в сфере ВИЭ _ Russian . news . cn</a><span class="news-meta">russian.news.cn · 2026-02-19  · 🌐</span></li><li><a href="https://timesca.com/kazakhstan-intends-to-triple-its-hydropower-capacity-by-2030/" target="_blank" rel="noopener">Kazakhstan Intends to Triple Its Hydropower Capacity by 2030 - The Times Of Central Asia</a><span class="news-meta">timesca.com · 2026-02-16</span></li><li><a href="https://www.trend.az/casia/kazakhstan/4154623.html" target="_blank" rel="noopener">Kazakhstan , Saudi Arabia ink agreement to establish Coordination Council</a><span class="news-meta">trend.az · 2026-02-18</span></li><li><a href="https://energyland.info/news-show--electro-279866" target="_blank" rel="noopener">Казахстан в 2026 году введет в эксплуатацию 2 , 64 ГВт мощностей традиционной и возобновляемой энергии</a><span class="news-meta">energyland.info · 2026-02-20  · 🌐</span></li></ul>
+  </details>
+</div>
+
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-flag">🇺🇿</span>
+    <div class="card-title-group">
+      <h2 class="card-country">Uzbekistan</h2>
+    </div>
+    <div class="card-badges">
+      <span class="pathway-badge" style="background:#b4530920;border-color:#b45309;color:#b45309aa">Fossil-to-Solar</span>
+    </div>
+  </div>
+
+  <div class="card-stats">
+    <div class="stat-row"><span class="stat-label">Solar PV capacity</span><span class="stat-value">474 MW</span><div class="bar-wrap"><div class="bar-fill" style="width:1.9%;background:#f6c443"></div></div></div><div class="stat-row"><span class="stat-label">Solar CAGR</span><span class="stat-value">85.2%/yr <span class='stat-since'>since 2013</span></span></div><div class="stat-row"><span class="stat-label">Renewables (final energy)</span><span class="stat-value">1.0%</span><div class="bar-wrap"><div class="bar-fill" style="width:1.0%;background:#3fb950"></div></div></div><div class="stat-row"><span class="stat-label">Renewables (electricity)</span><span class="stat-value">9.2%</span><div class="bar-wrap"><div class="bar-fill" style="width:9.2%;background:#58a6ff"></div></div></div><div class="stat-row"><span class="stat-label">GDP / capita</span><span class="stat-value">$2,879</span></div><div class="stat-row"><span class="stat-label">Democracy</span><span class="stat-value" style="color:#ef4444">Autocracy (-9)</span></div>
+  </div>
+
+  <details class="case-study-details">
+    <summary>Case study</summary>
+    <p class="case-study-text">Uzbekistan is executing one of Central Asia's most dramatic top-down energy transitions, pivoting from near-total gas dependence toward large-scale solar IPPs financed by Chinese, Saudi, and UAE capital. The Shams Uzbekistan program and Sherabad 457 MW project represent state-led deployment at speed — raising the core book question of whether authoritarian capacity enables or ultimately distorts durable energy transitions.</p>
+  </details>
+
+  <details class="news-details" open>
+    <summary>Recent news (4 articles)</summary>
+    <ul class="news-list"><li><a href="https://www.trend.az/business/4154707.html" target="_blank" rel="noopener">Uzbekistan sees steady surge in thermal power production</a><span class="news-meta">trend.az · 2026-02-18</span></li><li><a href="https://nuz.uz/2026/02/21/novuyu-redakcziyu-strategii-uzbekistan-2030-obsudili-v-tashkente/" target="_blank" rel="noopener">Новую редакцию Стратегии « Узбекистан - 2030 » обсудили в Ташкенте - Новости Узбекистана сегодня : nuz . uz</a><span class="news-meta">nuz.uz · 2026-02-21  · 🌐</span></li><li><a href="https://www.trend.az/business/4154707.html" target="_blank" rel="noopener">Uzbekistan sees steady surge in thermal power production</a><span class="news-meta">trend.az · 2026-02-18</span></li><li><a href="https://news.az/news/-uzbekistan-2030-a-strategic-path-to-prosperity-and-national-strength" target="_blank" rel="noopener">Uzbekistan - 2030 : A strategic path to prosperity and national strength</a><span class="news-meta">news.az · 2026-02-14</span></li></ul>
+  </details>
+</div>
+
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-flag">🇰🇪</span>
+    <div class="card-title-group">
+      <h2 class="card-country">Kenya</h2>
+    </div>
+    <div class="card-badges">
+      <span class="pathway-badge" style="background:#065f4620;border-color:#065f46;color:#065f46aa">Leapfrog</span>
+    </div>
+  </div>
+
+  <div class="card-stats">
+    <div class="stat-row"><span class="stat-label">Solar PV capacity</span><span class="stat-value">534 MW</span><div class="bar-wrap"><div class="bar-fill" style="width:2.1%;background:#f6c443"></div></div></div><div class="stat-row"><span class="stat-label">Solar CAGR</span><span class="stat-value">97.5%/yr <span class='stat-since'>since 2007</span></span></div><div class="stat-row"><span class="stat-label">Renewables (final energy)</span><span class="stat-value">67.7%</span><div class="bar-wrap"><div class="bar-fill" style="width:67.7%;background:#3fb950"></div></div></div><div class="stat-row"><span class="stat-label">Renewables (electricity)</span><span class="stat-value">91.9%</span><div class="bar-wrap"><div class="bar-fill" style="width:91.9%;background:#58a6ff"></div></div></div><div class="stat-row"><span class="stat-label">GDP / capita</span><span class="stat-value">$1,943</span></div><div class="stat-row"><span class="stat-label">Democracy</span><span class="stat-value" style="color:#3fb950">Democracy (9)</span></div>
+  </div>
+
+  <details class="case-study-details">
+    <summary>Case study</summary>
+    <p class="case-study-text">Kenya is Sub-Saharan Africa's most compelling solar leapfrog case: strong regulatory institutions (REREC, EPRA), IFC-backed IPP frameworks, and deep off-grid penetration through M-KOPA and similar platforms. It tests whether formal institutions and donor-supported markets can substitute for high state capacity in driving a grid-scale transition.</p>
+  </details>
+
+  <details class="news-details" open>
+    <summary>Recent news (4 articles)</summary>
+    <ul class="news-list"><li><a href="https://allafrica.com/stories/202602180485.html" target="_blank" rel="noopener">Kenya Unveils National Carbon Registry to Strengthen Climate Market Transparency</a><span class="news-meta">allafrica.com · 2026-02-18</span></li><li><a href="https://www.capitalfm.co.ke/news/2026/02/kenya-launches-national-carbon-registry-carbon-markets/" target="_blank" rel="noopener">Kenya unveils Carbon Registry to safeguard climate investments</a><span class="news-meta">capitalfm.co.ke · 2026-02-18</span></li><li><a href="https://allafrica.com/stories/202602180372.html" target="_blank" rel="noopener">Kenya : New Registry to Boost Kenya Entry Into Global Carbon Markets</a><span class="news-meta">allafrica.com · 2026-02-18</span></li><li><a href="https://www.standardmedia.co.ke/opinion/article/2001540923/nyanzas-irrigation-revolution-could-save-kenya-sh22b" target="_blank" rel="noopener">Nyanza irrigation revolution could save Kenya Sh22b</a><span class="news-meta">standardmedia.co.ke · 2026-02-15</span></li></ul>
+  </details>
+</div>
+
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-flag">🇲🇽</span>
+    <div class="card-title-group">
+      <h2 class="card-country">Mexico</h2>
+    </div>
+    <div class="card-badges">
+      <span class="pathway-badge" style="background:#1e3a5f20;border-color:#1e3a5f;color:#1e3a5faa">Middle Ground</span>
+    </div>
+  </div>
+
+  <div class="card-stats">
+    <div class="stat-row"><span class="stat-label">Solar PV capacity</span><span class="stat-value">10.9 GW</span><div class="bar-wrap"><div class="bar-fill" style="width:43.6%;background:#f6c443"></div></div></div><div class="stat-row"><span class="stat-label">Solar CAGR</span><span class="stat-value">33.6%/yr <span class='stat-since'>since 2000</span></span></div><div class="stat-row"><span class="stat-label">Renewables (final energy)</span><span class="stat-value">13.0%</span><div class="bar-wrap"><div class="bar-fill" style="width:13.0%;background:#3fb950"></div></div></div><div class="stat-row"><span class="stat-label">Renewables (electricity)</span><span class="stat-value">21.1%</span><div class="bar-wrap"><div class="bar-fill" style="width:21.1%;background:#58a6ff"></div></div></div><div class="stat-row"><span class="stat-label">GDP / capita</span><span class="stat-value">$13,861</span></div><div class="stat-row"><span class="stat-label">Democracy</span><span class="stat-value" style="color:#3fb950">Democracy (8)</span></div>
+  </div>
+
+  <details class="case-study-details">
+    <summary>Case study</summary>
+    <p class="case-study-text">Mexico is the book's democratic-backsliding case: enormous solar potential stalled by the AMLO administration's deliberate subordination of renewables to CFE and Pemex. CENACE grid-access rules and suspended auctions froze a formerly leading market. The Sheinbaum government's posture is the live analytical question — and Mexico's 20,943 MW of cumulative Chinese panel imports signals a supply chain ready to absorb policy reversal.</p>
+  </details>
+
+  <details class="news-details" open>
+    <summary>Recent news (4 articles)</summary>
+    <ul class="news-list"><li><a href="https://finance.yahoo.com/news/mexico-tech-energy-companies-seek-040400924.html" target="_blank" rel="noopener">New Mexico tech , energy companies seek funding infusions as lawmakers rethink R &amp; D tax credits</a><span class="news-meta">finance.yahoo.com · 2026-02-16</span></li><li><a href="https://www.jdsupra.com/legalnews/new-carbon-registry-signals-market-5890001/" target="_blank" rel="noopener">New carbon registry signals market shift in Mexico | Hogan Lovells</a><span class="news-meta">jdsupra.com · 2026-02-18</span></li><li><a href="https://www.abqjournal.com/news/new-mexico-tech-energy-companies-seek-funding-infusions-as-lawmakers-rethink-rd-tax-credits/2980769" target="_blank" rel="noopener">New Mexico tax incentives target advanced energy , fusion and quantum R &amp; D investment</a><span class="news-meta">abqjournal.com · 2026-02-16</span></li><li><a href="https://www.zocalo.com.mx/embajador-modernizacion-del-acuerdo-global-entre-mexico-y-la-ue-impulsara-inversiones/" target="_blank" rel="noopener">Embajador : modernización del Acuerdo Global entre México y la UE impulsará inversiones – Periódico Zócalo | Noticias de Saltillo , Torreón , Piedras Negras , Monclova , Acuña</a><span class="news-meta">zocalo.com.mx · 2026-02-18  · 🌐</span></li></ul>
+  </details>
+</div>
+
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-flag">🇭🇷</span>
+    <div class="card-title-group">
+      <h2 class="card-country">Croatia</h2>
+    </div>
+    <div class="card-badges">
+      <span class="pathway-badge" style="background:#065f4620;border-color:#065f46;color:#065f46aa">EU Accelerator</span>
+    </div>
+  </div>
+
+  <div class="card-stats">
+    <div class="stat-row"><span class="stat-label">Solar PV capacity</span><span class="stat-value">462 MW</span><div class="bar-wrap"><div class="bar-fill" style="width:1.8%;background:#f6c443"></div></div></div><div class="stat-row"><span class="stat-label">Solar CAGR</span><span class="stat-value">68.9%/yr <span class='stat-since'>since 2009</span></span></div><div class="stat-row"><span class="stat-label">Renewables (final energy)</span><span class="stat-value">34.1%</span><div class="bar-wrap"><div class="bar-fill" style="width:34.1%;background:#3fb950"></div></div></div><div class="stat-row"><span class="stat-label">Renewables (electricity)</span><span class="stat-value">75.9%</span><div class="bar-wrap"><div class="bar-fill" style="width:75.9%;background:#58a6ff"></div></div></div><div class="stat-row"><span class="stat-label">GDP / capita</span><span class="stat-value">$22,184</span></div><div class="stat-row"><span class="stat-label">Democracy</span><span class="stat-value" style="color:#3fb950">Democracy (9)</span></div>
+  </div>
+
+  <details class="case-study-details">
+    <summary>Case study</summary>
+    <p class="case-study-text">Croatia's post-accession trajectory is the book's before/after EU membership case: institutional cleanup and renewable investment surged following 2013 entry. It provides the comparative benchmark for Serbia — showing what full EU membership unlocks that candidacy alone cannot.</p>
+  </details>
+
+  <details class="news-details" open>
+    <summary>Recent news (0 articles)</summary>
+    <p class="no-news">No recent news collected.</p>
+  </details>
+</div>
+
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-flag">🇷🇸</span>
+    <div class="card-title-group">
+      <h2 class="card-country">Serbia</h2>
+    </div>
+    <div class="card-badges">
+      <span class="pathway-badge" style="background:#b4530920;border-color:#b45309;color:#b45309aa">Candidate Pressure</span>
+    </div>
+  </div>
+
+  <div class="card-stats">
+    <div class="stat-row"><span class="stat-label">Solar PV capacity</span><span class="stat-value">197 MW</span><div class="bar-wrap"><div class="bar-fill" style="width:0.8%;background:#f6c443"></div></div></div><div class="stat-row"><span class="stat-label">Solar CAGR</span><span class="stat-value">37.1%/yr <span class='stat-since'>since 2005</span></span></div><div class="stat-row"><span class="stat-label">Renewables (final energy)</span><span class="stat-value">27.2%</span><div class="bar-wrap"><div class="bar-fill" style="width:27.2%;background:#3fb950"></div></div></div><div class="stat-row"><span class="stat-label">Renewables (electricity)</span><span class="stat-value">27.0%</span><div class="bar-wrap"><div class="bar-fill" style="width:27.0%;background:#58a6ff"></div></div></div><div class="stat-row"><span class="stat-label">GDP / capita</span><span class="stat-value">$12,282</span></div><div class="stat-row"><span class="stat-label">Democracy</span><span class="stat-value" style="color:#3fb950">Democracy (8)</span></div>
+  </div>
+
+  <details class="case-study-details">
+    <summary>Case study</summary>
+    <p class="case-study-text">Serbia's energy reform is largely driven by EU accession conditionality, but weak institutions and enduring energy ties with Russia create deep path dependencies. It tests whether external conditionality can substitute for domestic political will — and how far a candidate state will go before full membership locks in reforms.</p>
+  </details>
+
+  <details class="news-details" open>
+    <summary>Recent news (4 articles)</summary>
+    <ul class="news-list"><li><a href="https://1news.az/news/20260216103931444-Serbian-News-Serbiya-ukrepit-energobezopasnost-blagodarya-investitsiyam-Azerbaidzhana" target="_blank" rel="noopener">Serbian News : Сербия укрепит энергобезопасность благодаря инвестициям Азербайджана</a><span class="news-meta">1news.az · 2026-02-16  · 🌐</span></li><li><a href="https://www.prnewswire.com/news-releases/fortis-energy-et-la-berd-signent-une-lettre-de-mandat-pour-un-projet-photovoltaique-et-de-stockage-de-342-mw-270-mwp72mwh--sremska-mitrovica-en-serbie-302692803.html" target="_blank" rel="noopener">Fortis Energy et la BERD signent une lettre de mandat pour un projet photovoltaïque et de stockage de 342 MW ( 270 MWp / 72MWh ) Sremska Mitrovica en Serbie</a><span class="news-meta">prnewswire.com · 2026-02-19  · 🌐</span></li><li><a href="https://www.novosti.rs/ekonomija/vesti/1576290/srbija-gradi-novu-gasnu-elektranu-djedovic-bice-stabilan-izvor-energije-koja-nasem-proizvodnom-sistemu-iznositi-oko-6-odsto" target="_blank" rel="noopener">SRBIJA GRADI NOVU GASNU ELEKTRANU Đedović : Biće to stabilan izvor energije koja će u našem proizvodnom sistemu iznositi oko 6 odsto</a><span class="news-meta">novosti.rs · 2026-02-17  · 🌐</span></li><li><a href="https://indianexpress.com/article/opinion/columns/president-of-serbia-writes-ai-summit-places-india-at-the-centre-of-the-global-discourse-10535667/" target="_blank" rel="noopener">President of Serbia writes : AI Summit places India at the centre of the global discourse</a><span class="news-meta">indianexpress.com · 2026-02-17</span></li></ul>
+  </details>
+</div>
+
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-flag">🇸🇰</span>
+    <div class="card-title-group">
+      <h2 class="card-country">Slovakia</h2>
+    </div>
+    <div class="card-badges">
+      <span class="pathway-badge" style="background:#991b1b20;border-color:#991b1b;color:#991b1baa">EU Laggard</span>
+    </div>
+  </div>
+
+  <div class="card-stats">
+    <div class="stat-row"><span class="stat-label">Solar PV capacity</span><span class="stat-value">593 MW</span><div class="bar-wrap"><div class="bar-fill" style="width:2.4%;background:#f6c443"></div></div></div><div class="stat-row"><span class="stat-label">Solar CAGR</span><span class="stat-value">30.3%/yr <span class='stat-since'>since 2010</span></span></div><div class="stat-row"><span class="stat-label">Renewables (final energy)</span><span class="stat-value">17.9%</span><div class="bar-wrap"><div class="bar-fill" style="width:17.9%;background:#3fb950"></div></div></div><div class="stat-row"><span class="stat-label">Renewables (electricity)</span><span class="stat-value">18.7%</span><div class="bar-wrap"><div class="bar-fill" style="width:18.7%;background:#58a6ff"></div></div></div><div class="stat-row"><span class="stat-label">GDP / capita</span><span class="stat-value">$24,615</span></div><div class="stat-row"><span class="stat-label">Democracy</span><span class="stat-value" style="color:#3fb950">Democracy (10)</span></div>
+  </div>
+
+  <details class="case-study-details">
+    <summary>Case study</summary>
+    <p class="case-study-text">Slovakia demonstrates that EU membership alone does not guarantee a renewable build-out. Its political economy tilts toward nuclear expansion and fossil-fuel incumbency, with solar deployment well below EU peers. It is the book's within-EU negative case: same regulatory environment, different political incentives, slower transition.</p>
+  </details>
+
+  <details class="news-details" open>
+    <summary>Recent news (2 articles)</summary>
+    <ul class="news-list"><li><a href="https://www.aktuality.sk/clanok/CGfYKQg/tomas-taraba-ci-rudolf-huliak-slovensko-zenu-ku-kubanskemu-kolapsu/" target="_blank" rel="noopener">Tomáš Taraba či Rudolf Huliak Slovensko ženú ku kubánskemu kolapsu</a><span class="news-meta">aktuality.sk · 2026-02-15  · 🌐</span></li><li><a href="https://www.aktuality.sk/clanok/CGfYKQg/tomas-taraba-ci-rudolf-huliak-slovensko-zenu-ku-kubanskemu-kolapsu/" target="_blank" rel="noopener">Tomáš Taraba či Rudolf Huliak Slovensko ženú ku kubánskemu kolapsu</a><span class="news-meta">aktuality.sk · 2026-02-15  · 🌐</span></li></ul>
+  </details>
+</div>
+
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-flag">🇸🇮</span>
+    <div class="card-title-group">
+      <h2 class="card-country">Slovenia</h2>
+    </div>
+    <div class="card-badges">
+      <span class="pathway-badge" style="background:#065f4620;border-color:#065f46;color:#065f46aa">EU Leader</span>
+    </div>
+  </div>
+
+  <div class="card-stats">
+    <div class="stat-row"><span class="stat-label">Solar PV capacity</span><span class="stat-value">1.03 GW</span><div class="bar-wrap"><div class="bar-fill" style="width:4.1%;background:#f6c443"></div></div></div><div class="stat-row"><span class="stat-label">Solar CAGR</span><span class="stat-value">73.7%/yr <span class='stat-since'>since 2005</span></span></div><div class="stat-row"><span class="stat-label">Renewables (final energy)</span><span class="stat-value">23.4%</span><div class="bar-wrap"><div class="bar-fill" style="width:23.4%;background:#3fb950"></div></div></div><div class="stat-row"><span class="stat-label">Renewables (electricity)</span><span class="stat-value">39.8%</span><div class="bar-wrap"><div class="bar-fill" style="width:39.8%;background:#58a6ff"></div></div></div><div class="stat-row"><span class="stat-label">GDP / capita</span><span class="stat-value">$32,660</span></div><div class="stat-row"><span class="stat-label">Democracy</span><span class="stat-value" style="color:#3fb950">Democracy (10)</span></div>
+  </div>
+
+  <details class="case-study-details">
+    <summary>Case study</summary>
+    <p class="case-study-text">Slovenia consistently outperforms EU renewable targets, serving as the book's small-open-economy EU success case. Stable institutions, access to European capital markets, and regulatory alignment with the EU Green Deal combine to produce steady if unspectacular solar growth — the baseline democratic transition model.</p>
+  </details>
+
+  <details class="news-details" open>
+    <summary>Recent news (1 articles)</summary>
+    <ul class="news-list"><li><a href="https://www.24ur.com/novice/slovenija-odloca/intervju-z-jernejem-vrtovcem.html" target="_blank" rel="noopener">V zadnjih 15 letih smo bili v vladi 3 leta , zato pa je Slovenija tam , kjer je</a><span class="news-meta">24ur.com · 2026-02-22  · 🌐</span></li></ul>
+  </details>
+</div>
+
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-flag">🇬🇭</span>
+    <div class="card-title-group">
+      <h2 class="card-country">Ghana</h2>
+    </div>
+    <div class="card-badges">
+      <span class="pathway-badge" style="background:#b4530920;border-color:#b45309;color:#b45309aa">Emerging Market</span>
+    </div>
+  </div>
+
+  <div class="card-stats">
+    <div class="stat-row"><span class="stat-label">Solar PV capacity</span><span class="stat-value">188 MW</span><div class="bar-wrap"><div class="bar-fill" style="width:0.8%;background:#f6c443"></div></div></div><div class="stat-row"><span class="stat-label">Solar CAGR</span><span class="stat-value">50.6%/yr <span class='stat-since'>since 2013</span></span></div><div class="stat-row"><span class="stat-label">Renewables (final energy)</span><span class="stat-value">39.0%</span><div class="bar-wrap"><div class="bar-fill" style="width:39.0%;background:#3fb950"></div></div></div><div class="stat-row"><span class="stat-label">Renewables (electricity)</span><span class="stat-value">38.5%</span><div class="bar-wrap"><div class="bar-fill" style="width:38.5%;background:#58a6ff"></div></div></div><div class="stat-row"><span class="stat-label">GDP / capita</span><span class="stat-value">$2,384</span></div><div class="stat-row"><span class="stat-label">Democracy</span><span class="stat-value" style="color:#3fb950">Democracy (8)</span></div>
+  </div>
+
+  <details class="case-study-details">
+    <summary>Case study</summary>
+    <p class="case-study-text">Ghana has more stable democratic institutions than its West African peers but slower solar deployment than its institutional quality would predict. Legacy power-sector IPP contracts, PURC/ECG financial distress, and currency risk create structural barriers even with political goodwill — making it a useful test of whether institutional quality alone suffices without supportive financial conditions.</p>
+  </details>
+
+  <details class="news-details" open>
+    <summary>Recent news (4 articles)</summary>
+    <ul class="news-list"><li><a href="https://www.myjoyonline.com/financing-barriers-slowing-microgrid-expansion-in-ghana-energy-minister/" target="_blank" rel="noopener">Financing barriers slowing microgrid expansion in Ghana - Energy Minister</a><span class="news-meta">myjoyonline.com · 2026-02-22</span></li><li><a href="https://www.myjoyonline.com/mahama-unveils-6-pillars-to-transform-ghanas-mining-sector-at-local-content-summit/" target="_blank" rel="noopener">Mahama unveils 6 pillars to transform Ghana mining sector at Local Content Summit</a><span class="news-meta">myjoyonline.com · 2026-02-18</span></li><li><a href="https://english.news.cn/20260217/64e2a770bd3842e28d9e949f8cf2359f/c.html" target="_blank" rel="noopener">Ghanaian VP celebrates Spring Festival , praises Ghana - China ties - Xinhua</a><span class="news-meta">english.news.cn · 2026-02-18</span></li><li><a href="https://ghanaiantimes.com.gh/executive-chairman-of-sentuo-group-urges-chinese-investors-to-uphold-ethics-strengthen-ghana-china-trade-ties/" target="_blank" rel="noopener">Executive Chairman of Sentuo Group urges Chinese Investors to uphold ethics , strengthen Ghana – China trade ties</a><span class="news-meta">ghanaiantimes.com.gh · 2026-02-16</span></li></ul>
+  </details>
+</div>
+
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-flag">🇲🇱</span>
+    <div class="card-title-group">
+      <h2 class="card-country">Mali</h2>
+    </div>
+    <div class="card-badges">
+      <span class="pathway-badge" style="background:#991b1b20;border-color:#991b1b;color:#991b1baa">Low Capacity</span>
+    </div>
+  </div>
+
+  <div class="card-stats">
+    <div class="stat-row"><span class="stat-label">Solar PV capacity</span><span class="stat-value">97 MW</span><div class="bar-wrap"><div class="bar-fill" style="width:0.4%;background:#f6c443"></div></div></div><div class="stat-row"><span class="stat-label">Solar CAGR</span><span class="stat-value">70.0%/yr <span class='stat-since'>since 2007</span></span></div><div class="stat-row"><span class="stat-label">Renewables (final energy)</span><span class="stat-value">71.1%</span><div class="bar-wrap"><div class="bar-fill" style="width:71.1%;background:#3fb950"></div></div></div><div class="stat-row"><span class="stat-label">Renewables (electricity)</span><span class="stat-value">42.7%</span><div class="bar-wrap"><div class="bar-fill" style="width:42.7%;background:#58a6ff"></div></div></div><div class="stat-row"><span class="stat-label">GDP / capita</span><span class="stat-value">$1,044</span></div><div class="stat-row"><span class="stat-label">Democracy</span><span class="stat-value" style="color:#a3e635">Weak Dem. (5)</span></div>
+  </div>
+
+  <details class="case-study-details">
+    <summary>Case study</summary>
+    <p class="case-study-text">Mali is the WPSA paper's fragile-state case: coup-cycle governance instability, French military withdrawal, and Wagner Group presence define an environment at the outer limits of institutional capacity for energy transition. It anchors the low end of the West Africa comparison and tests whether any external program can function without sovereign stability.</p>
+  </details>
+
+  <details class="news-details" open>
+    <summary>Recent news (0 articles)</summary>
+    <p class="no-news">No recent news collected.</p>
+  </details>
+</div>
+
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-flag">🇸🇳</span>
+    <div class="card-title-group">
+      <h2 class="card-country">Senegal</h2>
+    </div>
+    <div class="card-badges">
+      <span class="pathway-badge" style="background:#065f4620;border-color:#065f46;color:#065f46aa">Pioneer</span>
+    </div>
+  </div>
+
+  <div class="card-stats">
+    <div class="stat-row"><span class="stat-label">Solar PV capacity</span><span class="stat-value">231 MW</span><div class="bar-wrap"><div class="bar-fill" style="width:0.9%;background:#f6c443"></div></div></div><div class="stat-row"><span class="stat-label">Solar CAGR</span><span class="stat-value">30.9%/yr <span class='stat-since'>since 2010</span></span></div><div class="stat-row"><span class="stat-label">Renewables (final energy)</span><span class="stat-value">35.4%</span><div class="bar-wrap"><div class="bar-fill" style="width:35.4%;background:#3fb950"></div></div></div><div class="stat-row"><span class="stat-label">Renewables (electricity)</span><span class="stat-value">21.7%</span><div class="bar-wrap"><div class="bar-fill" style="width:21.7%;background:#58a6ff"></div></div></div><div class="stat-row"><span class="stat-label">GDP / capita</span><span class="stat-value">$1,698</span></div><div class="stat-row"><span class="stat-label">Democracy</span><span class="stat-value" style="color:#3fb950">Democracy (7)</span></div>
+  </div>
+
+  <details class="case-study-details">
+    <summary>Case study</summary>
+    <p class="case-study-text">Senegal is West Africa's most sophisticated renewable energy market: the Scaling Solar program, Senelec grid expansion, and a democratic political tradition create a relatively enabling environment. A major offshore gas windfall creates the central analytical tension — whether hydrocarbon revenue will crowd out renewables or fund the transition infrastructure the grid needs.</p>
+  </details>
+
+  <details class="news-details" open>
+    <summary>Recent news (4 articles)</summary>
+    <ul class="news-list"><li><a href="https://fr.allafrica.com/stories/202602190368.html" target="_blank" rel="noopener">Sénégal : Electrification à lhorizon 2030 - Le Sénégal prépare une feuille de route avec lappui dENABEL</a><span class="news-meta">fr.allafrica.com · 2026-02-19  · 🌐</span></li><li><a href="https://lequotidien.sn/construction-de-lautoroute-dakar-tivaouane-saint-louis-un-pret-de-plus-de-108-milliards-pour-le-senegal/" target="_blank" rel="noopener">Construction de lautoroute Dakar - Tivaouane - Saint Louis : Un prêt de plus de 108 milliards pour le Sénégal – Lequotidien – Journal dinformation Générale</a><span class="news-meta">lequotidien.sn · 2026-02-20  · 🌐</span></li><li><a href="https://fr.allafrica.com/stories/202602190368.html" target="_blank" rel="noopener">Sénégal : Electrification à lhorizon 2030 - Le Sénégal prépare une feuille de route avec lappui dENABEL</a><span class="news-meta">fr.allafrica.com · 2026-02-19  · 🌐</span></li><li><a href="https://lequotidien.sn/construction-de-lautoroute-dakar-tivaouane-saint-louis-un-pret-de-plus-de-108-milliards-pour-le-senegal/" target="_blank" rel="noopener">Construction de lautoroute Dakar - Tivaouane - Saint Louis : Un prêt de plus de 108 milliards pour le Sénégal – Lequotidien – Journal dinformation Générale</a><span class="news-meta">lequotidien.sn · 2026-02-20  · 🌐</span></li></ul>
+  </details>
+</div>
+
+  </div>
+</div>
+
+<!-- Data table (collapsible) -->
+<div class="table-section">
+  <details class="table-details">
+    <summary>Full data table (all indicators)</summary>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th style="background:#0d1117;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #30363d;border-bottom:2px solid #444;color:#c9d1d9">Country</th>
+          <th style="background:#0d1117;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #30363d;border-bottom:2px solid #444;color:#c9d1d9">Pathway / Project</th>
+          <th style="background:#0d1117;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #30363d;border-bottom:2px solid #444;color:#c9d1d9;text-align:right">Elec. access</th>
+          <th style="background:#0d1117;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #30363d;border-bottom:2px solid #444;color:#c9d1d9;text-align:right">GDP/cap</th>
+          <th style="background:#0d1117;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #30363d;border-bottom:2px solid #444;color:#c9d1d9;text-align:right">Renew. % final<br><span style="font-weight:400;font-size:.85em">(World Bank)</span></th>
+          <th style="background:#0d1117;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #30363d;border-bottom:2px solid #444;color:#c9d1d9;text-align:right">Solar PV<br><span style="font-weight:400;font-size:.85em">(IRENA)</span></th>
+          <th style="background:#0d1117;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #30363d;border-bottom:2px solid #444;color:#c9d1d9;text-align:right">Solar CAGR</th>
+          <th style="background:#0d1117;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #30363d;border-bottom:2px solid #444;color:#c9d1d9;text-align:right">Renew. % elec.<br><span style="font-weight:400;font-size:.85em">(Ember)</span></th>
+          <th style="background:#0d1117;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #30363d;border-bottom:2px solid #444;color:#c9d1d9;text-align:right">Democracy</th>
+          <th style="background:#0d1117;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #30363d;border-bottom:2px solid #444;color:#c9d1d9;text-align:right">V-Dem<br><span style="font-weight:400;font-size:.85em">Electoral</span></th>
+          <th style="background:#0d1117;padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid #30363d;border-bottom:2px solid #444;color:#c9d1d9;text-align:right">WGI<br><span style="font-weight:400;font-size:.85em">Rule of Law</span></th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d"><strong>Kazakhstan</strong></td><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d">Resource Trap</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">100.0%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">$12,879</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">2.0%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">1.31 GW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">119.6%<br><span style="font-size:.75em;color:#8b949e">since 2013</span></td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">15.2%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d"><span style="color:#ef4444">Autocracy</span></td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">0.271</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">-0.45</td></tr>
+<tr><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d"><strong>Uzbekistan</strong></td><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d">Fossil-to-Solar</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">100.0%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">$2,879</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">1.0%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">474 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">85.2%<br><span style="font-size:.75em;color:#8b949e">since 2013</span></td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">9.2%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d"><span style="color:#ef4444">Autocracy</span></td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">0.214</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">-0.83</td></tr>
+<tr><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d"><strong>Kenya</strong></td><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d">Leapfrog</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #30363d">76.2%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">$1,943</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">67.7%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">534 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">97.5%<br><span style="font-size:.75em;color:#8b949e">since 2007</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">91.9%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d"><span style="color:#3fb950">Democracy</span></td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #30363d">0.566</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">-0.33</td></tr>
+<tr><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d"><strong>Mexico</strong></td><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d">Middle Ground</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">99.7%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">$13,861</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">13.0%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">10.9 GW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">33.6%<br><span style="font-size:.75em;color:#8b949e">since 2000</span></td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">21.1%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d"><span style="color:#3fb950">Democracy</span></td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #30363d">0.549</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">-0.81</td></tr>
+<tr><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d"><strong>Croatia</strong></td><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d">EU Accelerator</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">100.0%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">$22,184</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #30363d">34.1%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">462 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">68.9%<br><span style="font-size:.75em;color:#8b949e">since 2009</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">75.9%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d"><span style="color:#3fb950">Democracy</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">0.744</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #30363d">0.36</td></tr>
+<tr><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d"><strong>Serbia</strong></td><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d">Candidate Pressure</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">100.0%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">$12,282</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">27.2%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">197 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">37.1%<br><span style="font-size:.75em;color:#8b949e">since 2005</span></td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">27.0%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d"><span style="color:#3fb950">Democracy</span></td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #30363d">0.360</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #30363d">-0.07</td></tr>
+<tr><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d"><strong>Slovakia</strong></td><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d">EU Laggard</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">100.0%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">$24,615</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">17.9%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">593 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">30.3%<br><span style="font-size:.75em;color:#8b949e">since 2010</span></td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">18.7%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d"><span style="color:#3fb950">Democracy</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">0.817</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">0.60</td></tr>
+<tr><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d"><strong>Slovenia</strong></td><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d">EU Leader</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">100.0%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">$32,660</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">23.4%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">1.03 GW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">73.7%<br><span style="font-size:.75em;color:#8b949e">since 2005</span></td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #30363d">39.8%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d"><span style="color:#3fb950">Democracy</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">0.757</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">1.04</td></tr>
+<tr><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d"><strong>Ghana</strong></td><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d">Emerging Market</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">89.5%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">$2,384</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #30363d">39.0%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">188 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">50.6%<br><span style="font-size:.75em;color:#8b949e">since 2013</span></td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #30363d">38.5%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d"><span style="color:#3fb950">Democracy</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">0.664</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #30363d">-0.10</td></tr>
+<tr><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d"><strong>Mali</strong></td><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d">Low Capacity</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #30363d">54.5%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">$1,044</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">71.1%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">97 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">70.0%<br><span style="font-size:.75em;color:#8b949e">since 2007</span></td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #30363d">42.7%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d"><span style="color:#a3e635">Weak Dem.</span></td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">0.231</td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">-0.98</td></tr>
+<tr><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d"><strong>Senegal</strong></td><td style="background:#161b22;text-align:left;padding:6px 10px;border:1px solid #30363d">Pioneer</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #30363d">74.2%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">$1,698</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #30363d">35.4%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d">231 MW</td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">30.9%<br><span style="font-size:.75em;color:#8b949e">since 2010</span></td><td style="background:#5c2020;text-align:right;padding:6px 10px;border:1px solid #30363d">21.7%</td><td style="background:#161b22;text-align:right;padding:6px 10px;border:1px solid #30363d"><span style="color:#3fb950">Democracy</span></td><td style="background:#1e5c2a;text-align:right;padding:6px 10px;border:1px solid #30363d">0.626</td><td style="background:#5c4a20;text-align:right;padding:6px 10px;border:1px solid #30363d">-0.27</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="leg-item"><div class="leg-box" style="background:#1e5c2a"></div> High</div>
+  <div class="leg-item"><div class="leg-box" style="background:#5c4a20"></div> Mid</div>
+  <div class="leg-item"><div class="leg-box" style="background:#5c2020"></div> Low</div>
+</div>
+
+<!-- Footer -->
 <footer>
-  <strong>Data sources:</strong>
-  World Bank Indicators API (electricity access, GDP/cap, renewable energy % of final consumption) ·
+  <strong>Data:</strong>
+  World Bank Indicators API (electricity access, GDP/cap, renewable energy %) ·
   IRENA STAT PX-Web API (solar PV installed capacity, MW) ·
   Ember Global Electricity Review (renewable electricity %) ·
-  V-Dem Institute v15 Full+Others (electoral democracy index 0–1) ·
-  World Bank WGI source=3 (rule of law estimate ≈ −2.5 to +2.5) ·
-  Polity5 2018 release (not shown; see per-country democracy_summary.md).<br>
+  V-Dem Institute v15 (electoral democracy index 0–1) ·
+  World Bank WGI (rule of law estimate) ·
+  GDELT DOC API v2 (news monitoring).<br>
   <strong>Research:</strong>
-  <em>Same Sun, Different Fates</em> (book in progress) ·
+  <em>Same Sun, Different Fates</em> (book manuscript, Anthem Impact proposal Feb 2026) ·
   WPSA 2026 paper with Bleck ·
   Uzbekistan solo article (Spring 2026).<br>
   <strong>Repository:</strong>
-  <a href="https://github.com/logigorus/solar-tracker">github.com/logigorus/solar-tracker</a>
+  <a href="https://github.com/logigorus/solar-tracker" target="_blank">github.com/logigorus/solar-tracker</a>
 </footer>
+
+<script>
+function filterCards(key, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const euPathways = ['eu leader','eu laggard','candidate pressure','eu accelerator'];
+  document.querySelectorAll('.card').forEach(card => {
+    if (key === 'all') {
+      card.hidden = false;
+      return;
+    }
+    const badge = card.querySelector('.pathway-badge');
+    const pathway = badge ? badge.textContent.trim().toLowerCase() : '';
+    if (key === 'eu') {
+      card.hidden = !euPathways.includes(pathway);
+    } else if (key === 'west-africa') {
+      card.hidden = !['pioneer','low capacity','emerging market'].includes(pathway);
+    } else {
+      card.hidden = pathway !== key.replace(/-/g,' ');
+    }
+  });
+}
+</script>
+
 </body>
 </html>
